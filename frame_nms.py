@@ -10,20 +10,22 @@ class Detector(object):
 
         self.name = name
 
+        self.color = (0, 255, 0)
+
         self.nms_threshold = 0.3
 
-        self.time = 1/frame_num
+        self.time = 1/frame_num  # 频率
 
         self.es = cv2.getStructuringElement(
             cv2.MORPH_ELLIPSE, (k_size, k_size))
 
     def catch_video(self, video_index=0, k_size=7,
                     iterations=3, threshold=20, bias_num=1,
-                    min_area=360, show_test=True, enhance=True):
+                    min_area=360, show_test=True):
 
-        # video_index：摄像头索引或者视频路径
+        # video_index：摄像头索引（数字）或者视频路径（字符路径）
         # k_size：中值滤波的滤波器大小
-        # iteration：腐蚀+膨胀的次数
+        # iteration：腐蚀+膨胀的次数，0表示不进行腐蚀和膨胀操作
         # threshold：二值化阙值
         # bias_num：计算帧差图时的帧数差
         # min_area：目标的最小面积
@@ -66,20 +68,17 @@ class Detector(object):
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             gray = cv2.absdiff(gray, previous[0])
-            
+
             gray = cv2.medianBlur(gray, k_size)
 
             ret, mask = cv2.threshold(
                 gray, threshold, 255, cv2.THRESH_BINARY)
 
-            if enhance:
-
-                mask = cv2.dilate(mask, self.es, iterations)
-                mask = cv2.erode(mask, self.es, iterations)
+            mask = cv2.dilate(mask, self.es, iterations)
+            mask = cv2.erode(mask, self.es, iterations)
 
             _, cnts, _ = cv2.findContours(
                 mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                
 
             bounds = self.nms_cnts(cnts, mask, min_area)
 
@@ -87,7 +86,7 @@ class Detector(object):
 
                 x, y, w, h = b
 
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                cv2.rectangle(frame, (x, y), (x+w, y+h), self.color, 2)
 
             if not is_camera:
 
@@ -115,6 +114,7 @@ class Detector(object):
         cv2.destroyAllWindows()
 
     def nms_cnts(self, cnts, mask, min_area):
+        # 对检测到的边界框使用非极大值抑制
 
         bounds = [cv2.boundingRect(
             c) for c in cnts if cv2.contourArea(c) > min_area]
@@ -138,7 +138,8 @@ class Detector(object):
 
         area = mask[y:y+h, x:x+w]
 
-        pos = area > 0 + 0
+        pos = area > 0
+        pos = pos.astype(np.float)
 
         score = np.sum(pos)/(w*h)
 
@@ -156,5 +157,5 @@ if __name__ == "__main__":
 
     detector = Detector()
 
-    detector.catch_video('./test.avi', bias_num=2, iterations=3,
-                         k_size=5, show_test=True, enhance=False)
+    detector.catch_video('./test.avi', bias_num=2, iterations=0,
+                         k_size=5, show_test=True)
