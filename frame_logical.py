@@ -19,7 +19,8 @@ class Detector(object):
 
     def catch_video(self, video_index=0, k_size=7,
                     iterations=3, threshold=20, bias_num=1,
-                    min_area=360, show_test=True, enhance=True):
+                    min_area=360, show_test=True, 
+                    enhance=True, logical='or'):
 
         # video_index：摄像头索引或者视频路径
         # k_size：中值滤波的滤波器大小
@@ -28,6 +29,8 @@ class Detector(object):
         # bias_num：计算帧差图时的帧数差
         # min_area：目标的最小面积
         # show_test：是否显示二值化图片
+
+        logical = logical.lower()
 
         if not bias_num > 0:
             raise Exception('bias_num must > 0')
@@ -58,19 +61,35 @@ class Detector(object):
             if frame_num < bias_num:
 
                 value = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                previous.append(value)
+                previous = [value]*bias_num
 
                 frame_num += 1
 
             raw = frame.copy()
 
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray = cv2.absdiff(gray, previous[0])
-            
-            gray = cv2.medianBlur(gray, k_size)
+            gray1 = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray1 = cv2.absdiff(gray1, previous[0])
 
-            ret, mask = cv2.threshold(
-                gray, threshold, 255, cv2.THRESH_BINARY)
+            gray1 = cv2.medianBlur(gray1, k_size)
+
+            _, mask1 = cv2.threshold(
+                gray1, threshold, 255, cv2.THRESH_BINARY)
+
+            gray2 = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray2 = cv2.absdiff(gray2, previous[1])
+
+            gray2 = cv2.medianBlur(gray2, k_size)
+
+            _, mask2 = cv2.threshold(
+                gray2, threshold, 255, cv2.THRESH_BINARY)
+
+            if logical == 'or':
+                mask = (np.logical_or(mask1, mask2) + 0)
+            elif logical == 'and':
+                mask = (np.logical_and(mask1, mask2) + 0)
+            else:
+                raise Exception('Logical must be \'OR\' or \'AND\'')
+            mask = (mask * 255).astype(np.uint8)
 
             if enhance:
 
@@ -79,7 +98,6 @@ class Detector(object):
 
             _, cnts, _ = cv2.findContours(
                 mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                
 
             bounds = self.nms_cnts(cnts, mask, min_area)
 
@@ -151,10 +169,14 @@ class Detector(object):
 
         return l
 
+    def process_image(self, image):
+        pass
+
 
 if __name__ == "__main__":
 
     detector = Detector()
 
     detector.catch_video('./test.avi', bias_num=2, iterations=3,
-                         k_size=5, show_test=True, enhance=False)
+                         k_size=5, show_test=True, enhance=False,
+                         logical='OR')
