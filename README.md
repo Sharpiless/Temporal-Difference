@@ -7,5 +7,8 @@
 5. bias_num：计算帧差图时的帧数差
 6. min_area：目标的最小面积
 7. show_test：是否显示二值化图片
+
+
+效果如图：
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/2020010615542185.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NDkzNjg4OQ==,size_16,color_FFFFFF,t_70)
 
