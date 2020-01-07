@@ -20,7 +20,7 @@ class Detector(object):
             cv2.MORPH_ELLIPSE, (k_size, k_size))
 
     def catch_video(self, video_index=0, method='T', k_size=7, dialta=0.95,
-                    iterations=3, threshold=20, bias_num=1,logical='or',
+                    iterations=3, threshold=20, bias_num=1, logical='or',
                     min_area=360, show_test=True, nms=True):
 
         # video_index：摄像头索引（数字）或者视频路径（字符路径）
@@ -52,9 +52,13 @@ class Detector(object):
 
         self.frame_num = 0
 
-        if method != 'B':
+        if method == 'tr':
 
             self.background = []
+
+        if method == 'g':
+
+            self.mog = cv2.createBackgroundSubtractorMOG2()
 
         while cap.isOpened():
 
@@ -76,9 +80,14 @@ class Detector(object):
                     cap, k_size, dialta, iterations, threshold,
                     bias_num, min_area, show_test, nms, logical)
 
+            elif method == 'g':
+
+                mask, frame = self.gaussian_bk(cap, k_size, iterations)
+
             else:
 
-                raise Exception('method must be \'T\' or \'Tr\' or \'B\'')
+                raise Exception(
+                    'method must be \'T\' or \'Tr\' or \'B\' or \'G\'')
 
             _, cnts, _ = cv2.findContours(
                 mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -100,7 +109,8 @@ class Detector(object):
 
                 sleep(self.time)
 
-            # cv2.imshow(self.name+'_bk', self.background)  # 在window上显示背景
+            # 在window上显示背景
+            # cv2.imshow(self.name+'_bk', background)
             cv2.imshow(self.name, frame)  # 在window上显示图片
             if show_test:
                 cv2.imshow(self.name+'_frame', mask)  # 边界
@@ -118,6 +128,26 @@ class Detector(object):
         # 释放摄像头
         cap.release()
         cv2.destroyAllWindows()
+
+    def gaussian_bk(self, cap, k_size=7, iterations=3):
+
+        catch, frame = cap.read()  # 读取每一帧图片
+
+        if not catch:
+
+            if self.is_camera:
+
+                raise Exception('Unexpected Error.')
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        mask = self.mog.apply(gray)
+
+        mask = cv2.medianBlur(mask, k_size)
+
+        mask = cv2.dilate(mask, self.es, iterations)
+        mask = cv2.erode(mask, self.es, iterations)
+
+        return mask, frame
 
     def weights_bk(self, cap, k_size=7, dialta=0.95,
                    iterations=3, threshold=20, bias_num=1,
@@ -139,12 +169,12 @@ class Detector(object):
             self.frame_num += 1
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        raw = gray.copy()
+        raw = cv2.GaussianBlur(gray, (3, 3), -1e-5)
 
         gray = np.abs(gray-self.background).astype('uint8')
 
-        self.background = self.background*dialta + raw*(1-dialta)
-        self.background = self.background.astype('uint8')
+        self.background = self.background*dialta + raw*(1-dialta)  # 这里有问题
+        # self.background = self.background.astype('uint8')
 
         gray = cv2.medianBlur(gray, k_size)
 
@@ -287,12 +317,28 @@ class Detector(object):
 
         return l
 
+    def propose_gaussian(self, num):
+
+        nums = []
+
+        for _ in range(num):
+
+            nums.append(np.random.normal())
+
+        nums = sorted(nums)
+
+        s2b = nums[::2]
+        b2s = nums[1::2]
+
+        s2b.extend(b2s[::-1])
+
+        return np.array(s2b) - np.min(s2b)
+
 
 if __name__ == "__main__":
 
     detector = Detector(name='test')
 
-    detector.catch_video('./test.avi', method='b', bias_num=2, iterations=2,
-                         k_size=5, show_test=True, min_area=360,
+    detector.catch_video('./test.avi', method='g', bias_num=2, iterations=2,
+                         k_size=5, show_test=True, min_area=240,
                          nms=False, threshold=30, dialta=0.9)
-                         
