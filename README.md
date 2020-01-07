@@ -1,4 +1,4 @@
-﻿使用Detertor类的catch_video实现，具体参数：
+﻿使用frame.py中的Detertor类的catch_video实现，具体参数：
 
 1. video_index：摄像头索引（数字）或者视频路径（字符路径）
 2. k_size：中值滤波的滤波器大小
